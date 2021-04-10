@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "cppvsdbg",
+            "request": "launch",
+            "name": "run rl-audio-device-hotkey",
+            "program": "${workspaceFolder}\\target\\debug\\rl-audio-device-hotkey.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "rust: cargo build",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "sourceFileMap": {
+                "/rustc/07e0e2ec268c140e607e1ac7f49f145612d0f597": "${env:HOME}${env:USERPROFILE}\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\src\\rust",
+                "d:\\rustc\\07e0e2ec268c140e607e1ac7f49f145612d0f597": "${env:HOME}${env:USERPROFILE}\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\lib\\rustlib\\src\\rust",
+            }
+        }
+    ]
+}
