@@ -23,9 +23,10 @@ impl KeyboardHook {
         keyboard_hook.init();
 
         unsafe {
-            assert!(
-                INSTANCE == std::ptr::null_mut(),
-                "Global Window has already been initialized!"
+            assert_eq!(
+                INSTANCE,
+                std::ptr::null_mut(),
+                "Global KeyboardHook has already been initialized!"
             );
             INSTANCE = std::mem::transmute(keyboard_hook);
 
@@ -36,8 +37,9 @@ impl KeyboardHook {
 
     fn init(&mut self) {
         let instance = HINSTANCE(unsafe { GetModuleHandleA(PSTR::default()) });
-        debug_assert!(
-            instance.0 != 0,
+        assert_ne!(
+            instance.0,
+            0,
             "instance was invalid. GetLastError: {}",
             unsafe { GetLastError() }
         );
@@ -50,14 +52,19 @@ impl KeyboardHook {
                 0,
             )
         };
-        debug_assert!(
-            self.hook != HHOOK::default(),
-            "Keyboard hook could not be installed. GetLastError: {}",
+        assert_ne!(
+            self.hook,
+            HHOOK::default(),
+            "KeyboardHook could not be installed. GetLastError: {}",
             unsafe { GetLastError() }
         );
     }
 
-    extern "system" fn low_level_keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    extern "system" fn low_level_keyboard_proc(
+        code: i32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
         let keyboard_hook = unsafe {
             assert!(
                 INSTANCE != std::ptr::null_mut(),
@@ -66,7 +73,7 @@ impl KeyboardHook {
             &mut (*INSTANCE)
         };
 
-        if code >= 0 && (wparam.0 == WM_KEYUP as _ || wparam.0 == WM_SYSKEYUP as _ ){
+        if code >= 0 && (wparam.0 == WM_KEYUP as _ || wparam.0 == WM_SYSKEYUP as _) {
             let p = lparam.0 as *const KBDLLHOOKSTRUCT;
             let p = unsafe { *p };
             let handled = (keyboard_hook.on_key_released)(&p);

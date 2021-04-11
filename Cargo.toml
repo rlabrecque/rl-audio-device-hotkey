@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 bindings = { package = "bindings", path = "bindings" }
+windows = "0.7.0"
+widestring = "0.4.3"
