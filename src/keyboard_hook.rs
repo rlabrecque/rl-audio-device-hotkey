@@ -10,14 +10,14 @@ static mut INSTANCE: *mut KeyboardHook = std::ptr::null_mut();
 
 pub struct KeyboardHook {
     hook: HHOOK,
-    on_key_down_event: OnKeyDownCallback,
+    on_key_released: OnKeyDownCallback,
 }
 
 impl KeyboardHook {
-    pub fn new(on_key_down_event: OnKeyDownCallback) -> Box<Self> {
+    pub fn new(on_key_released: OnKeyDownCallback) -> Box<Self> {
         let mut keyboard_hook = Box::new(Self {
             hook: HHOOK(0),
-            on_key_down_event,
+            on_key_released,
         });
 
         keyboard_hook.init();
@@ -45,7 +45,7 @@ impl KeyboardHook {
         self.hook = unsafe {
             SetWindowsHookExA(
                 SetWindowsHookEx_idHook::WH_KEYBOARD_LL,
-                Some(Self::keyboard_proc),
+                Some(Self::low_level_keyboard_proc),
                 instance,
                 0,
             )
@@ -57,7 +57,7 @@ impl KeyboardHook {
         );
     }
 
-    extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    extern "system" fn low_level_keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         let keyboard_hook = unsafe {
             assert!(
                 INSTANCE != std::ptr::null_mut(),
@@ -66,10 +66,10 @@ impl KeyboardHook {
             &mut (*INSTANCE)
         };
 
-        if code >= 0 {
+        if code >= 0 && (wparam.0 == WM_KEYUP as _ || wparam.0 == WM_SYSKEYUP as _ ){
             let p = lparam.0 as *const KBDLLHOOKSTRUCT;
             let p = unsafe { *p };
-            let handled = (keyboard_hook.on_key_down_event)(&p);
+            let handled = (keyboard_hook.on_key_released)(&p);
             if handled {
                 return LRESULT(-1);
             }
