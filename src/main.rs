@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 
-mod keyboard_hook;
 mod audio_device;
+mod keyboard_hook;
 mod window;
 
 use bindings::{

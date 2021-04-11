@@ -5,33 +5,54 @@ pub fn switch_to_next_output_device() -> windows::Result<()> {
 
     let enumerator: IMMDeviceEnumerator = windows::create_instance(&MMDeviceEnumerator)?;
 
+    let collection = enumerator_enum_audio_endpoints(&enumerator)?;
+
+    let count = collection_get_count(&collection)?;
+    println!("Count: {}", count);
+    if count == 0 {
+        println!("No audio devices found.");
+        return Ok(());
+    }
+
     let default_device = enumerator_get_default_audio_endpoint(&enumerator)?;
     println!("default_device: {:#?}", default_device);
 
     let default_device_id = device_get_id(&default_device)?;
     let default_device_id_str =
         unsafe { widestring::U16CString::from_ptr_str(default_device_id.0).to_string_lossy() };
-    println!(
-        "default_device_id: {:#?}\n{}",
-        default_device_id, default_device_id_str
-    );
+    println!("default_device_id: {:#?}", default_device_id);
+    println!("default_device_id_str: {}", default_device_id_str);
 
-    let collection = enumerator_enum_audio_endpoints(&enumerator)?;
-
-    let count = collection_get_count(&collection)?;
-    println!("Count: {}", count);
-
+    let mut default_device_index = 0u32;
+    let mut device_id_str_vec = Vec::<PWSTR>::default();
     for index in 0..count {
         let device = collection_get_item(&collection, index)?;
         println!("device: {:#?}", device);
 
         let device_id = device_get_id(&device)?;
+
         let device_id_str =
             unsafe { widestring::U16CString::from_ptr_str(default_device_id.0).to_string_lossy() };
-        println!("device_id: {:#?}\n{}", device_id, device_id_str);
+        println!("device_id: {:#?}", device_id);
+        println!("device_id_str: {}", device_id_str);
+
+        if device_id_str == default_device_id_str {
+            println!("Found default device!");
+            default_device_index = index;
+        }
+
+        device_id_str_vec.push(device_id);
     }
 
+    let next_device_index = (default_device_index + 1) % count;
+
+    set_default_endpoint(device_id_str_vec[next_device_index as usize]);
+
     Ok(())
+}
+
+fn set_default_endpoint(_device_id: PWSTR) {
+    // TODO...
 }
 
 fn enumerator_get_default_audio_endpoint(
