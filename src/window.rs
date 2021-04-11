@@ -1,56 +1,24 @@
 use bindings::{
-    Windows::Win32::Debug::*, Windows::Win32::KeyboardAndMouseInput::*,
-    Windows::Win32::MenusAndResources::*, Windows::Win32::SystemServices::*,
-    Windows::Win32::WindowsAndMessaging::*,
+    Windows::Win32::Debug::*, Windows::Win32::MenusAndResources::*,
+    Windows::Win32::SystemServices::*, Windows::Win32::WindowsAndMessaging::*,
 };
 
-// Global instance required for the keyboard hook to get the window :(
-static mut INSTANCE: *mut Window = std::ptr::null_mut();
-
-#[derive(Debug)]
 pub struct Window {
     handle: HWND,
-    keyboard_hook: HHOOK,
 }
 
 impl Window {
     const WINDOW_CLASS_NAME: PSTR = PSTR(b"rl-audio-device-hotkey\0".as_ptr() as _);
 
-    pub fn new() -> Box<Self> {
-        let mut window = Box::new(Self {
-            handle: HWND(0),
-            keyboard_hook: HHOOK(0),
-        });
+    pub fn new() -> Self {
+        let mut window = Self { handle: HWND(0) };
 
         window.init();
 
-        unsafe {
-            assert!(
-                INSTANCE == std::ptr::null_mut(),
-                "Global Window has already been initialized!"
-            );
-            INSTANCE = std::mem::transmute(window);
-
-            // Get that instance back out of INSTANCE so that we can return it.
-            std::mem::transmute(INSTANCE)
-        }
+        window
     }
 
     fn init(&mut self) {
-        self.keyboard_hook = unsafe {
-            SetWindowsHookExA(
-                SetWindowsHookEx_idHook::WH_KEYBOARD_LL,
-                Some(Self::keyboard_proc),
-                HINSTANCE(0),
-                0,
-            )
-        };
-        debug_assert!(
-            self.keyboard_hook != HHOOK::default(),
-            "Keyboard hook could not be installed. GetLastError: {}",
-            unsafe { GetLastError() }
-        );
-
         let instance = HINSTANCE(unsafe { GetModuleHandleA(PSTR::default()) });
         debug_assert!(
             instance.0 != 0,
@@ -96,7 +64,7 @@ impl Window {
         debug_assert!(window == self.handle);
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&self) {
         let mut message = MSG::default();
 
         loop {
@@ -120,34 +88,6 @@ impl Window {
             }
             _ => unsafe { DefWindowProcA(self.handle, message, wparam, lparam) },
         }
-    }
-
-    fn keyboard_proc_handler(&mut self, code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-        if code >= 0 {
-            let p = lparam.0 as *const KBDLLHOOKSTRUCT;
-            let p = unsafe { *p };
-            let key_down = 0 == (p.flags & 0x80/*LLKHF_UP*/);
-
-            if key_down {
-                let ctrl_pressed = unsafe { GetKeyState(VK_CONTROL as _) } < 0;
-                if ctrl_pressed && p.vkCode == VK_F12 {
-                    //NextAudioPlaybackDevice();
-                    println!("TADA!!");
-                }
-
-                println!(
-                    "vkCode({}) scanCode({}) ctrl({})",
-                    p.vkCode, p.scanCode, ctrl_pressed,
-                );
-                if p.vkCode == VK_ESCAPE {
-                    unsafe {
-                        PostMessageA(self.handle, WM_CLOSE, WPARAM(0), LPARAM(0));
-                    }
-                }
-            }
-        }
-
-        unsafe { CallNextHookEx(self.keyboard_hook, code, wparam, lparam) }
     }
 
     extern "system" fn wndproc(
@@ -175,32 +115,6 @@ impl Window {
             }
 
             DefWindowProcA(window, message, wparam, lparam)
-        }
-    }
-
-    extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-        let window = unsafe {
-            assert!(
-                INSTANCE != std::ptr::null_mut(),
-                "Global Window is not initialized!"
-            );
-            &mut (*INSTANCE)
-        };
-
-        (*window).keyboard_proc_handler(code, wparam, lparam)
-    }
-}
-
-impl Drop for Window {
-    fn drop(&mut self) {
-        println!("Dropping!");
-
-        unsafe {
-            INSTANCE = std::ptr::null_mut();
-        }
-
-        unsafe {
-            UnhookWindowsHookEx(self.keyboard_hook);
         }
     }
 }
